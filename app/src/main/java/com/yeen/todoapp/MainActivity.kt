@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.yeen.todoapp.data.TodoData
 import com.yeen.todoapp.ui.theme.TodoAppTheme
 
@@ -126,55 +133,34 @@ fun Todo(
 }
 
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun TopLevel() {
-    val (text, setText) = remember { mutableStateOf("") }
-    val todoList = remember { mutableStateListOf<TodoData>() }
+fun TopLevel(viewModel: TodoViewModel = viewModel()) {
     //MutableStateList 추가, 삭제, 변경 -> UI 갱신
     //항목 하나의 값을 바꾸는 것보다 항목 자체를 바꾸는게 더 효율적
-
-    val onSubmit : (String) -> Unit = {text ->
-        val key = (todoList.lastOrNull()?.key ?: 0) + 1
-        todoList.add(TodoData(key = key, text))
-        setText("")
-    }
-
-    val onToggle: (Int, Boolean) -> Unit = { key, checked ->
-        val i = todoList.indexOfFirst { it.key == key }
-        todoList[i] = todoList[i].copy(done = checked)
-    }
-
-    val onDelete : (Int) -> Unit = { key ->
-        val i = todoList.indexOfFirst { it.key == key }
-        todoList.removeAt(i)
-    }
-
-    val onEdit: (Int, String) -> Unit = { key, text ->
-        val i = todoList.indexOfFirst { it.key == key }
-        todoList[i] = todoList[i].copy(text = text)
-    }
-
-
-    Column {
-        TodoInput(
-            text = text,
-            onTextChanged = setText,
-            onSubmit = onSubmit
-        )
-
-        LazyColumn {
-            //렌더링을 위한 key 설정
-            items(todoList, key = {it.key}) { todoData ->
-                Todo(
-                    todoData = todoData,
-                    onEdit = onEdit,
-                    onToggle = onToggle,
-                    onDelete = onDelete)
+    Scaffold {
+        Column {
+            TodoInput(
+                text = viewModel.text.observeAsState("").value,
+                onTextChanged = viewModel.setText,
+                onSubmit = viewModel.onSubmit
+            )
+            val items = viewModel.todoList.observeAsState(emptyList()).value
+            LazyColumn {
+                //렌더링을 위한 key 설정
+                items(
+                    items = items,
+                    key = { it.key }
+                ) { todoData ->
+                    Todo(
+                        todoData = todoData,
+                        onEdit = viewModel.onEdit,
+                        onToggle = viewModel.onToggle,
+                        onDelete = viewModel.onDelete)
+                }
             }
         }
     }
-
-
 }
 
 @Composable
@@ -197,8 +183,101 @@ fun TodoInput(
             Text(text = "입력")
         }
     }
+}
+
+@Composable
+fun MyNav(
+    modifier: Modifier = Modifier,
+    navController: NavHostController = rememberNavController()
+) {
+    NavHost(navController = navController, "HOME",  modifier = modifier) {
+        composable("HOME") {
+            Column {
+                Text("HOME")
+                Button(onClick = {
+                    navController.navigate("Office") {
+                        popUpTo("HOME") {
+                            inclusive = true
+                        }
+                    }
+                }) {
+                    Text("Office로 이동")
+                }
+                Button(onClick = {
+                    navController.navigate("Playground")
+                }) {
+                    Text("Playground로 이동")
+                }
+                Button(onClick = {
+                    navController.navigate("HOME") {
+                        launchSingleTop = true
+                    }
+                }) {
+                    Text("Home으로 이동")
+                }
+
+                Button(onClick = {
+                    navController.navigate("Argument/fastcampus") {
+                        launchSingleTop = true
+                    }
+                }) {
+                    Text("fastcampus 아이디로 연결")
+                }
+            }
+        }
+
+        composable("Argument/{userId}") {
+            val userId = it.arguments?.get("userId")
+            Text("userId: $userId")
+        }
 
 
+        composable("Office") {
+            Column {
+                Text(text = "Office")
+                Button(onClick = {
+                    navController.navigate("HOME") {
+                        popUpTo("HOME") {
+                            inclusive = true
+                        }
+                    }
+                }) {
+                    Text("HOME으로 이동")
+                }
+
+                Button(onClick = {
+                    navController.navigate("Playground") {
+                        popUpTo("HOME") {
+                            inclusive = true
+                        }
+                    }
+                }) {
+                    Text("Playground로 이동")
+                }
+            }
+        }
+
+        composable("Playground") {
+            Column {
+                Text(text = "Playground")
+                Button(onClick = {
+                    navController.navigate("HOME") {
+                        popUpTo("HOME") {
+                            inclusive = true
+                        }
+                    }
+                }) {
+                    Text("HOME으로 이동")
+                }
+                Button(onClick = {
+                    navController.navigate("Office")
+                }) {
+                    Text("Office로 이동")
+                }
+            }
+        }
+
+    }
 }
 
 
